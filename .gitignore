@@ -1,0 +1,46 @@
+# Arduino IDE generated files
+*.hex
+*.elf
+*.bin
+*.eep
+build/
+applet/
+*.tmp
+*.bak
+
+# Arduino IDE 2.x cache and temporary files
+.vscode/
+.idea/
+*.code-workspace
+
+# macOS and Windows junk
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# Libraries folder (we don't commit downloaded libraries)
+libraries/
+
+# Project-specific temporary files
+*.log
+*.cache
+*.temp
+
+# Optional: ignore large images/screenshots if they get too big
+# images/*.jpg
+# images/*.png
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
