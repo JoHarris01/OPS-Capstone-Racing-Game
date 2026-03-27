@@ -21,7 +21,7 @@ Players race on synced boards & maps and can sabotage each other (screen flash +
 - NRF24L01+ wireless module
 - Passive piezo buzzer (optional extra button)
 
-## Software portion of the project
+## Software portion of Project
 ### Option 1: Arduino IDE (Simplest)
 1. Clone or download the repo
 2. Open the folder `code/OPSCapstone/`
