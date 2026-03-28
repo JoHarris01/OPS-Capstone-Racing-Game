@@ -18,6 +18,8 @@ RF24 radio(CE_PIN, CSN_PIN);
 GamePacket txPacket;
 GamePacket rxPacket;
 
+void drawGameScreen();
+
 // Global variables
 int playerProgress = 0;
 int playerLane = 1;
