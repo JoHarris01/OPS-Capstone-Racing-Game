@@ -9,10 +9,10 @@ Two Arduino Nanos with SSD1306 OLEDs, joysticks, and NRF24L01 modules.
 Players race on synced boards & maps and can sabotage each other (screen flash + pushback).
 
 ## Features
-- Real-time wireless position syncing
+- Real-time wireless board syncing
 - 2 levels with different track maps
 - Power-ups/sabotage system
-- Retro-style graphics and sounds (via piezo buzzer)
+- Retro-style graphics and sounds (via piezo buzzer-- Johanna can help with this as well)
 
 ## Hardware (per player)
 - Arduino Nano
@@ -21,7 +21,7 @@ Players race on synced boards & maps and can sabotage each other (screen flash +
 - NRF24L01+ wireless module
 - Passive piezo buzzer (optional extra button)
 
-## Software portion of Project
+## Software Portion of Project
 ### Option 1: Arduino IDE (Simplest)
 1. Clone or download the repo
 2. Open the folder `code/OPSCapstone/`
@@ -35,7 +35,7 @@ Players race on synced boards & maps and can sabotage each other (screen flash +
 3. PlatformIO will detect the project automatically
 4. Click the orange alien icon (PlatformIO) → Build / Upload
 
-## Folder Structure
+## Folder Structure (UNOFFICIAL)
 - `code/OPSCapstone/` → Main Arduino sketch (works with both IDEs-- might break up parts)
 - `hardware/` → Wiring diagrams and pinouts
 - `images/` → Screenshots of gameplay
