@@ -1,6 +1,7 @@
 # OPS-Capstone-Racing-Game
 We will create some sort of racing game where players are racing each other until the end. A player can pick up certain items that can negatively effect the opponent and power-ups to boost themselves. First player to cross the finish line on Level 2 wins. Both screens show “WINNER!” or "LOSER!" with victory chiptune + flashing animation.
 
+#Cardboard/Decor might be used to cover extraneous wires, might need to use male/female jumpers cables to allow them to stick out of the cardboard
 
 # OPS Capstone Racing Game
 
@@ -10,13 +11,13 @@ Players race on synced boards & maps and can sabotage each other (screen flash +
 
 ## Features
 - Real-time wireless board syncing
-- 2 levels with different track maps
+- 1 level with different track maps
 - Power-ups/sabotage system
 - Retro-style graphics and sounds (via piezo buzzer-- Johanna can help with this as well)
 
 ## Hardware (per player)
 - Arduino Nano
-- 0.96" SSD1306 OLED (I2C)
+- LCD Display 
 - KY-023 Joystick
 - NRF24L01+ wireless module
 - Passive piezo buzzer (optional extra button)
