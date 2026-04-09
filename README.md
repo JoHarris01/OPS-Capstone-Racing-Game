@@ -4,7 +4,6 @@ We will create some sort of racing game where players are racing each other unti
 #Cardboard/Decor might be used to cover extraneous wires, might need to use male/female jumpers cables to allow them to stick out of the cardboard
 
 # OPS Capstone Racing Game
-
 Wireless head-to-head racing game for IEEE OPS capstone.  
 Two Arduino Nanos with SSD1306 OLEDs, joysticks, and NRF24L01 modules.  
 Players race on synced boards & maps and can sabotage each other (screen flash + pushback).
@@ -47,3 +46,19 @@ Players race on synced boards & maps and can sabotage each other (screen flash +
 - OLED rendering & graphics + communication: [Johanna H.]
 - Game logic & maps: [Catherine K.]
 - Hardware assembly & testing: [Diane C.]
+
+#The LCD Pinout on circuit: 
+ * LCD RS pin to digital pin 12
+ * LCD Enable pin to digital pin 11
+ * LCD D4 pin to digital pin 5
+ * LCD D5 pin to digital pin 4
+ * LCD D6 pin to digital pin 3
+ * LCD D7 pin to digital pin 2
+ * LCD R/W pin to ground
+ * LCD VSS pin to ground
+ * LCD VCC pin to 5V
+ * 10K resistor:
+ * ends to +5V and ground
+ * wiper to LCD VO pin (pin 3)
+ * A connected to power
+ * K connected to ground 
