@@ -1,0 +1,95 @@
+const int btnNext = 2;
+const int btnSelect = 3;
+int selectedMap = 0;   // 0 = map1, 1 = map2
+bool gameStarted = false;
+void drawMenu(LiquidCrystal_I2C &lcd) {
+  lcd.clear();
+  
+  lcd.setCursor(0, 0);
+  lcd.print("Select Map:");
+
+  lcd.setCursor(0, 1);
+  
+  if (selectedMap == 0) {
+    lcd.print("> Map 1   Map 2");
+  } else {
+    lcd.print("  Map 1 > Map 2");
+  }
+}
+
+void updateMenu() {
+  if (digitalRead(btnNext) == HIGH) {
+    selectedMap = !selectedMap; // toggle 0 ↔ 1
+    drawMenu(lcd1);
+    delay(200); // debounce
+  }
+
+  if (digitalRead(btnSelect) == HIGH) {
+    gameStarted = true;
+    lcd1.clear();
+    delay(200);
+  }
+}
+
+char* currentRow1;
+char* currentRow2;
+
+void loadSelectedMap() {
+  if (selectedMap == 0) {
+    currentRow1 = map1_row1;
+    currentRow2 = map1_row2;
+  } else {
+    currentRow1 = map2_row1;
+    currentRow2 = map2_row2;
+  }
+}
+
+void loop() {
+
+  if (!gameStarted) {
+    updateMenu();
+    return;
+  }
+
+  // once selected, load map once
+  static bool mapLoaded = false;
+  if (!mapLoaded) {
+    loadSelectedMap();
+    mapLoaded = true;
+  }
+
+  // run game
+  drawWindow(lcd1, currentRow1, currentRow2, offset);
+
+  offset++;
+
+  delay(300);
+}
+
+void setup() {
+  lcd1.init();
+  lcd1.backlight();
+
+  pinMode(btnNext, INPUT);
+  pinMode(btnSelect, INPUT);
+
+  drawMenu(lcd1);
+}
+
+
+' ' = empty
+'#' = barrier
+'S' = start
+'E' = end
+char map1_row1[] = "S  #   #   #   #   E";
+char map1_row2[] = "   #       #       ";
+char map2_row1[] = "S     ##      ##  E";
+char map2_row2[] = " ##        ##      ";
+//Player start position
+{int playerX = 2; 
+int playerY = 0;}
+char tile = map1_row1[playerX + offset];
+
+if (tile == '#') {
+  // collision!
+}
