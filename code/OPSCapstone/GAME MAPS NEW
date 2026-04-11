@@ -1,39 +1,23 @@
-const int btnNext = 2;
-const int btnSelect = 3;
-int selectedMap = 0;   // 0 = map1, 1 = map2
-bool gameStarted = false;
-void drawMenu(LiquidCrystal_I2C &lcd) {
-  lcd.clear();
-  
-  lcd.setCursor(0, 0);
-  lcd.print("Select Map:");
+// maps.h
+// Game maps and map handling - Owned by Teammate A (Maps/Characters)
 
-  lcd.setCursor(0, 1);
-  
-  if (selectedMap == 0) {
-    lcd.print("> Map 1   Map 2");
-  } else {
-    lcd.print("  Map 1 > Map 2");
-  }
-}
+#pragma once
 
-void updateMenu() {
-  if (digitalRead(btnNext) == HIGH) {
-    selectedMap = !selectedMap; // toggle 0 ↔ 1
-    drawMenu(lcd1);
-    delay(200); // debounce
-  }
+// Map 1
+char map1_row1[] = "S # # # # E  ";
+char map1_row2[] = "  # #      # ";
 
-  if (digitalRead(btnSelect) == HIGH) {
-    gameStarted = true;
-    lcd1.clear();
-    delay(200);
-  }
-}
+// Map 2 (harder)
+char map2_row1[] = "S ## ##  # E ";
+char map2_row2[] = " #  ## ##   ";
 
-char* currentRow1;
-char* currentRow2;
+// Current map data
+extern char* currentRow1;
+extern char* currentRow2;
+extern int selectedMap;
+extern int offset;
 
+// Load the selected map
 void loadSelectedMap() {
   if (selectedMap == 0) {
     currentRow1 = map1_row1;
@@ -44,109 +28,11 @@ void loadSelectedMap() {
   }
 }
 
-void loop() {
-
-  if (!gameStarted) {
-    updateMenu();
-    return;
-  }
-
-  // once selected, load map once
-  static bool mapLoaded = false;
-  if (!mapLoaded) {
-    loadSelectedMap();
-    mapLoaded = true;
-  }
-
-  // run game
-  drawWindow(lcd1, currentRow1, currentRow2, offset);
-
-  offset++;
-
-  delay(300);
-}
-
-void setup() {
-  lcd1.init();
-  lcd1.backlight();
-
-  pinMode(btnNext, INPUT);
-  pinMode(btnSelect, INPUT);
-
-  drawMenu(lcd1);
-}
-
-
-' ' = empty
-'#' = barrier
-'S' = start
-'E' = end
-char map1_row1[] = "S  #   #   #   #   E";
-char map1_row2[] = "   #       #       ";
-char map2_row1[] = "S     ##      ##  E";
-char map2_row2[] = " ##        ##      ";
-//Player start position
-{int playerX = 2; 
-int playerY = 0;}
-char tile = map1_row1[playerX + offset];
-
-if (tile == '#') {
-  // collision!
-}
-
-bool gameOver = false;
-char tile = currentRow1[playerX + offset];
-
-if (playerY == 1) {
-  tile = currentRow2[playerX + offset];
-}
-
-if (tile == 'E') {
-  gameOver = true;
-}
-void loop() {
-
-  if (!gameStarted) {
-    updateMenu();
-    return;
-  }
-
-  if (gameOver) {
-    showEndScreen();
-    return;
-  }
-
-  drawWindow(lcd1, currentRow1, currentRow2, offset);
-
-  offset++;
-
-  delay(300);
-}
-void showEndScreen() {
-  lcd1.clear();
-
-  lcd1.setCursor(0, 0);
-  lcd1.print("   YOU WIN!   ");
-
-  lcd1.setCursor(0, 1);
-  lcd1.print(" Press Select ");
-
-  // wait for restart
-  if (digitalRead(btnSelect) == HIGH) {
-    resetGame();
-    delay(300);
+// Simple function to get a character from the map at a position
+char getMapTile(int row, int position) {
+  if (row == 0) {
+    return currentRow1[position % strlen(currentRow1)];
+  } else {
+    return currentRow2[position % strlen(currentRow2)];
   }
 }
-void resetGame() {
-  gameStarted = false;
-  gameOver = false;
-
-  offset = 0;
-  playerX = 2;
-  playerY = 0;
-
-  drawMenu(lcd1);
-}
-
-char map1_row1[] = "S  #   #   #   #   E";
-
