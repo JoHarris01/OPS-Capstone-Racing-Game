@@ -93,3 +93,60 @@ char tile = map1_row1[playerX + offset];
 if (tile == '#') {
   // collision!
 }
+
+bool gameOver = false;
+char tile = currentRow1[playerX + offset];
+
+if (playerY == 1) {
+  tile = currentRow2[playerX + offset];
+}
+
+if (tile == 'E') {
+  gameOver = true;
+}
+void loop() {
+
+  if (!gameStarted) {
+    updateMenu();
+    return;
+  }
+
+  if (gameOver) {
+    showEndScreen();
+    return;
+  }
+
+  drawWindow(lcd1, currentRow1, currentRow2, offset);
+
+  offset++;
+
+  delay(300);
+}
+void showEndScreen() {
+  lcd1.clear();
+
+  lcd1.setCursor(0, 0);
+  lcd1.print("   YOU WIN!   ");
+
+  lcd1.setCursor(0, 1);
+  lcd1.print(" Press Select ");
+
+  // wait for restart
+  if (digitalRead(btnSelect) == HIGH) {
+    resetGame();
+    delay(300);
+  }
+}
+void resetGame() {
+  gameStarted = false;
+  gameOver = false;
+
+  offset = 0;
+  playerX = 2;
+  playerY = 0;
+
+  drawMenu(lcd1);
+}
+
+char map1_row1[] = "S  #   #   #   #   E";
+
