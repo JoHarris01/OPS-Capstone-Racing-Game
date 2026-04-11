@@ -1,7 +1,4 @@
-// LCDRacer.ino
-// Vertical LCD Racing Game with Sabotage - IEEE OPS Capstone
-
-// LCDRacer.ino - Main File
+// LCDRacer.ino - Complete Main File with Point System
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -11,7 +8,7 @@
 #include "comms.h"
 #include "game_logic.h"
 #include "mechanics.h"
-#include "maps.h"         
+#include "maps.h"
 
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 RF24 radio(CE_PIN, CSN_PIN);
@@ -23,9 +20,14 @@ GamePacket rxPacket;
 int playerProgress = 0;
 int playerLane = 1;
 int currentLevel = 1;
+int roundNumber = 1;
 bool gameRunning = false;
 bool sabotaged = false;
 unsigned long sabotageEndTime = 0;
+
+// Point System
+int playerScore = 0;
+int opponentScore = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -35,6 +37,7 @@ void setup() {
 
   lcd.createChar(0, carTop);
   lcd.createChar(1, carBottom);
+  lcd.createChar(2, orb);
 
   lcd.setCursor(2, 0);
   lcd.print("PACKET DASH");
@@ -49,10 +52,13 @@ void setup() {
 
   pinMode(FIRE_BTN, INPUT_PULLUP);
 
-  selectedMap = 0;           
+  selectedMap = 0;
   offset = 0;
-  loadSelectedMap();         
+  loadSelectedMap();
+
   gameRunning = true;
+  playerScore = 0;
+  opponentScore = 0;
 }
 
 void loop() {
@@ -62,40 +68,52 @@ void loop() {
   }
 
   updateSabotage();
-  updateMovement();
-  updateMechanics();
+  updateMovement();        // From game_logic.h
+  updateMechanics();       // From mechanics.h
 
+  // Wireless
   if (checkForIncomingData()) {
-    if (rxPacket.sabotageFired) triggerSabotage();
+    if (rxPacket.sabotageFired) {
+      triggerSabotage();
+      opponentScore += 10;     // Opponent gains points for sabotaging you
+    }
   }
 
-  drawGameScreen();   // Now uses her maps
+  drawGameScreen();         // Your LCD + map display
 
+  // Fire sabotage
   if (digitalRead(FIRE_BTN) == LOW) {
     sendSabotage();
+    playerScore += 15;       // Bonus for successful sabotage
     delay(250);
   }
 
+  // Progress points
+  if (playerProgress % 8 == 0 && playerProgress > 0) {
+    playerScore += 1;
+  }
+
   if (checkFinishLine()) {
+    playerScore += 50;       // Big bonus for finishing round
     nextRound();
   }
 
-  offset++;   // Scroll the map
+  offset++;
   delay(100);
 }
 
-// 
+// LCD Display with Score and Map
 void drawGameScreen() {
   lcd.clear();
 
-  // Top row = scrolling map (her map data)
+  // Top row: Level + Score
   lcd.setCursor(0, 0);
-  for (int i = 0; i < 16; i++) {
-    int idx = (offset + i) % 16;
-    lcd.print(getMapTile(0, idx));
-  }
+  lcd.print("L");
+  lcd.print(currentLevel);
+  lcd.print(" S:");
+  lcd.print(playerScore);
 
-  // Bottom row = player info + car
+  // Bottom row: Lane + Car + Status + Map tile
   lcd.setCursor(0, 1);
   lcd.print("Lane:");
   lcd.print(playerLane);
@@ -106,15 +124,28 @@ void drawGameScreen() {
 
   if (sabotaged) {
     lcd.setCursor(11, 1);
-    lcd.print("SAB!");
+    lcd.print(" SAB!");
   }
 }
 
+// Final Winner Screen
 void showWinnerScreen() {
   lcd.clear();
-  lcd.setCursor(2, 0);
-  lcd.print(playerProgress >= MAX_PROGRESS ? " YOU WIN! " : " YOU LOSE ");
-  lcd.setCursor(2, 1);
-  lcd.print("Game Over");
-  delay(4000);
+  lcd.setCursor(1, 0);
+  
+  if (playerScore > opponentScore) {
+    lcd.print(" YOU WIN!");
+  } else if (opponentScore > playerScore) {
+    lcd.print(" YOU LOSE ");
+  } else {
+    lcd.print("   TIE   ");
+  }
+
+  lcd.setCursor(0, 1);
+  lcd.print("You:");
+  lcd.print(playerScore);
+  lcd.print(" Opp:");
+  lcd.print(opponentScore);
+
+  delay(5000);
 }
