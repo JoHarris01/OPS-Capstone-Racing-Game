@@ -1,0 +1,34 @@
+void setup() {
+lcd.createChar(0, char1);
+lcd.createChar(1, char2);
+
+lcd.setCursor(0, 0);
+lcd.write(byte(0)); // first shape
+
+lcd.setCursor(1, 0);
+lcd.write(byte(1)); // second shape
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+byte char1[8] = {
+  0b00100,
+  0b01110,
+  0b11111,
+  0b11111,
+  0b11111,
+  0b00000,
+  0b00000,
+  0b00000
+};
+byte char2[8] = {
+  0b11111,
+  0b00100,
+  0b00100,
+  0b01110,
+  0b00100,
+  0b00000,
+  0b00000,
+  0b00000
+};
+}
