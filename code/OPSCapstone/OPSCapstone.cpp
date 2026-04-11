@@ -1,4 +1,3 @@
-// Main file for Packet Dash Duel - Wireless OLED Racing Game
 // LCDRacer.ino
 // Vertical LCD Racing Game with Sabotage - IEEE OPS Capstone
 
@@ -17,6 +16,16 @@ RF24 radio(CE_PIN, CSN_PIN);
 GamePacket txPacket;
 GamePacket rxPacket;
 
+// Global variables (used by all files)
+int playerProgress = 0;
+int playerLane = 1;
+int currentLevel = 1;
+int roundNumber = 1;
+bool gameRunning = false;
+int score = 0;
+bool sabotaged = false;
+unsigned long sabotageEndTime = 0;
+
 void setup() {
   Serial.begin(9600);
   Serial.println("=== LCD Packet Dash Duel Starting ===");
@@ -25,10 +34,16 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.clear();
+
+  // Create custom characters
+  lcd.createChar(0, carTop);
+  lcd.createChar(1, carBottom);
+  lcd.createChar(2, orb);
+
   lcd.setCursor(3, 0);
   lcd.print("PACKET DASH");
-  lcd.setCursor(2, 1);
-  lcd.print("DUEL STARTING");
+  lcd.setCursor(4, 1);
+  lcd.print("DUEL");
   delay(2500);
   lcd.clear();
 
@@ -38,7 +53,8 @@ void setup() {
 
   pinMode(FIRE_BTN, INPUT_PULLUP);
 
-  Serial.println("Setup complete!");
+  gameRunning = true;
+  Serial.println("Setup complete - Game Ready!");
 }
 
 void loop() {
@@ -48,20 +64,19 @@ void loop() {
   }
 
   updateSabotage();
-  updateMovement();           // Teammate A
-  updateMechanics();          // Teammate B
+  updateMovement();        
+  updateMechanics();       
 
-  // Wireless communication
+  // Wireless
   if (checkForIncomingData()) {
     if (rxPacket.sabotageFired) triggerSabotage();
   }
 
-  drawGameScreen();           // Your responsibility - LCD drawing
-
-  // Fire sabotage
+  drawGameScreen();        
+  // Fire sabotage with joystick button
   if (digitalRead(FIRE_BTN) == LOW) {
     sendSabotage();
-    delay(300);
+    delay(250);
   }
 
   // Check if round is finished
@@ -69,42 +84,50 @@ void loop() {
     nextRound();
   }
 
-  delay(80);
+  delay(90);
 }
 
-// ==================== YOUR PART: LCD DISPLAY ====================
+//YOUR PART: LCD DISPLAY
 void drawGameScreen() {
   lcd.clear();
 
-  // Top row - Progress & Level
+  // Top row: Level and Progress
   lcd.setCursor(0, 0);
   lcd.print("L");
   lcd.print(currentLevel);
   lcd.print(" P:");
   lcd.print(playerProgress);
 
-  // Bottom row - Lane + Status
+  // Bottom row: Lane + Car + Status
   lcd.setCursor(0, 1);
   lcd.print("Lane:");
   lcd.print(playerLane);
 
+  // Show car using custom characters
+  lcd.setCursor(9, 1);
+  lcd.write(byte(0));   // top half of sprite
+  lcd.write(byte(1));   // bottom half of sprite
+
   if (sabotaged) {
-    lcd.print(" SABOTAGED!");
+    lcd.setCursor(12, 1);
+    lcd.print("SAB!");
   } else {
+    lcd.setCursor(12, 1);
     lcd.print(" OK");
   }
 }
 
-// Show winner / loser at the end of the game
+// Show winner or loser at the end of the game
 void showWinnerScreen() {
   lcd.clear();
-  lcd.setCursor(1, 0);
+  lcd.setCursor(2, 0);
   if (playerProgress >= MAX_PROGRESS) {
     lcd.print("YOU WIN!");
   } else {
     lcd.print("YOU LOSE");
   }
   lcd.setCursor(0, 1);
-  lcd.print("Round over");
-  delay(4000);
+  lcd.print("Game Over");
+  delay(5000);
+  lcd.clear();
 }
