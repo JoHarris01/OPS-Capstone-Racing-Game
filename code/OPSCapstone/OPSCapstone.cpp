@@ -1,104 +1,110 @@
 // Main file for Packet Dash Duel - Wireless OLED Racing Game
+// LCDRacer.ino
+// Vertical LCD Racing Game with Sabotage - IEEE OPS Capstone
 
-#include <SPI.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include <RF24.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-
 #include "config.h"
 #include "sprites.h"
 #include "comms.h"
 #include "game_logic.h"
 #include "mechanics.h"
 
-// Global objects
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 RF24 radio(CE_PIN, CSN_PIN);
 
 GamePacket txPacket;
 GamePacket rxPacket;
 
-void drawGameScreen();
-
-// Global variables
-int playerProgress = 0;
-int playerLane = 1;
-int currentLevel = 1;
-bool gameRunning = false;
-int score = 0;
-bool sabotaged = false;
-unsigned long sabotageEndTime = 0;
-
 void setup() {
   Serial.begin(9600);
-  Serial.println("=== Packet Dash Duel Starting ===");
+  Serial.println("=== LCD Packet Dash Duel Starting ===");
 
-  // Initialize OLED
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("OLED failed to initialize!");
-    while (1);
-  }
-  display.clearDisplay();
-  display.display();
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(3, 0);
+  lcd.print("PACKET DASH");
+  lcd.setCursor(2, 1);
+  lcd.print("DUEL STARTING");
+  delay(2500);
+  lcd.clear();
 
-  // Initialize other systems
   initRadio();
   initGameLogic();
   initMechanics();
 
   pinMode(FIRE_BTN, INPUT_PULLUP);
 
-  gameRunning = true;
-  Serial.println("Setup complete - Ready to race!");
+  Serial.println("Setup complete!");
 }
 
 void loop() {
-  if (!gameRunning) return;
-
-  // Update sabotage effect
-  updateSabotage();
-
-  // Update player movement (Teammate A)
-  updateMovement();
-
-  // Check for incoming wireless data
-  if (checkForIncomingData()) {
-    // Update opponent position and check for sabotage
-    if (rxPacket.sabotageFired) {
-      triggerSabotage();
-    }
+  if (!gameRunning) {
+    showWinnerScreen();
+    return;
   }
 
-  // Draw everything on OLED (your part)
-  drawGameScreen();
+  updateSabotage();
+  updateMovement();           // Teammate A
+  updateMechanics();          // Teammate B
 
-  // Fire sabotage when button pressed
+  // Wireless communication
+  if (checkForIncomingData()) {
+    if (rxPacket.sabotageFired) triggerSabotage();
+  }
+
+  drawGameScreen();           // Your responsibility - LCD drawing
+
+  // Fire sabotage
   if (digitalRead(FIRE_BTN) == LOW) {
     sendSabotage();
-    delay(300); // simple debounce
+    delay(300);
   }
 
-  delay(50); // Small delay for stability
+  // Check if round is finished
+  if (checkFinishLine()) {
+    nextRound();
+  }
+
+  delay(80);
 }
 
-// ==================== OLED DRAWING ====================
-// (This is your main area - you can expand this)
+// ==================== YOUR PART: LCD DISPLAY ====================
 void drawGameScreen() {
-  display.clearDisplay();
+  lcd.clear();
 
-  // Draw basic track
-  display.drawRect(20, 0, 88, 64, WHITE);        // Road border
-  display.drawRect(35, 0, 58, 64, WHITE);        // Inner road
+  // Top row - Progress & Level
+  lcd.setCursor(0, 0);
+  lcd.print("L");
+  lcd.print(currentLevel);
+  lcd.print(" P:");
+  lcd.print(playerProgress);
 
-  // Draw player car at bottom
-  display.drawBitmap(50 + (playerLane * 12), 48, carSprite, 8, 8, WHITE);
+  // Bottom row - Lane + Status
+  lcd.setCursor(0, 1);
+  lcd.print("Lane:");
+  lcd.print(playerLane);
 
-  // Draw sabotage effect
   if (sabotaged) {
-    display.invertDisplay(true);
+    lcd.print(" SABOTAGED!");
   } else {
-    display.invertDisplay(false);
+    lcd.print(" OK");
   }
+}
 
-  display.display();
+// Show winner / loser at the end of the game
+void showWinnerScreen() {
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  if (playerProgress >= MAX_PROGRESS) {
+    lcd.print("YOU WIN!");
+  } else {
+    lcd.print("YOU LOSE");
+  }
+  lcd.setCursor(0, 1);
+  lcd.print("Round over");
+  delay(4000);
 }
