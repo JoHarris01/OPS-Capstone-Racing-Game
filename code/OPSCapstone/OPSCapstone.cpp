@@ -1,5 +1,4 @@
 // LCDRacer.ino - Complete Main File with Point System
-
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <RF24.h>
@@ -9,6 +8,8 @@
 #include "game_logic.h"
 #include "mechanics.h"
 #include "maps.h"
+
+bool isPlayerA = true; 
 
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 RF24 radio(CE_PIN, CSN_PIN);
@@ -59,6 +60,14 @@ void setup() {
   gameRunning = true;
   playerScore = 0;
   opponentScore = 0;
+
+  if (IS_PLAYER_A) {
+  radio.openWritingPipe(address1);
+  radio.openReadingPipe(1, address2);
+} else {
+  radio.openWritingPipe(address2);
+  radio.openReadingPipe(1, address1);
+}
 }
 
 void loop() {
