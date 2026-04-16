@@ -1,4 +1,5 @@
 // LCDRacer.ino - Complete Main File with Point System
+#include <SPI.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <RF24.h>
