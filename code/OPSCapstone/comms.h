@@ -13,10 +13,18 @@ void initRadio() {
   radio.begin();
   radio.setPALevel(RF24_PA_LOW);
   radio.setDataRate(RF24_250KBPS);
-  radio.openWritingPipe(0xF0F0F0F0E1LL);
-  radio.openReadingPipe(1, 0xF0F0F0F0E2LL);
+
+  if (isPlayerA) {
+    radio.openWritingPipe(0xF0F0F0F0E1LL);    // Player A writes to this address
+    radio.openReadingPipe(1, 0xF0F0F0F0E2LL); // Player A listens to Player B
+    Serial.println("I am Player A");
+  } else {
+    radio.openWritingPipe(0xF0F0F0F0E2LL);    // Player B writes to this address
+    radio.openReadingPipe(1, 0xF0F0F0F0E1LL); // Player B listens to Player A
+    Serial.println("I am Player B");
+  }
+
   radio.startListening();
-  Serial.println("Wireless ready");
 }
 
 void sendGameState(int progress, int lane, bool sabotageFired, int level) {
