@@ -1,161 +1,197 @@
-// LCDRacer.ino - Complete Main File with Point System
 #include <SPI.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <nRF24L01.h>
 #include <RF24.h>
-#include "config.h"
-#include "sprites.h"
-#include "comms.h"
-#include "game_logic.h"
-#include "mechanics.h"
-#include "maps.h"
+#include <LiquidCrystal.h>
 
-bool isPlayerA = true; 
 
-LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
-RF24 radio(CE_PIN, CSN_PIN);
+LiquidCrystal lcd(A2, A3, 5, 4, 3, 2);
+RF24 radio(7, 8);
+//#define JOY_BTN   6
 
-GamePacket txPacket;
-GamePacket rxPacket;
+bool isPlayerOne = false; // SET TO false ON SECOND BOARD
+const byte addrs[][6] = {"1Node", "2Node"};
 
-// Globals
-int playerProgress = 0;
-int playerLane = 1;
-int currentLevel = 1;
-int roundNumber = 1;
-bool gameRunning = false;
-bool sabotaged = false;
-unsigned long sabotageEndTime = 0;
 
-// Point System
-int playerScore = 0;
-int opponentScore = 0;
+struct Pack { int x; int y; int lvl; bool won; bool ready; };
+Pack me = {0, 1, 1, false, false}, peer = {0, 1, 1, false, false};
+
+
+int gameSpeed = 130;
+bool gameOver = false;
+
+
+byte p1Char[] = {0x4,0xE,0x4,0xE,0x4,0xA,0xA,0x0}, p2Char[] = {0x4,0xA,0x4,0xA,0x4,0xA,0xA,0x0};
+byte tree[]   = {0x1F,0x15,0x1F,0x15,0x1F,0x15,0x1F,0x1F}, bump[] = {0x4,0xE,0x1F,0x1F,0x1F,0xE,0x4,0x0};
+
 
 void setup() {
-  Serial.begin(9600);
-  lcd.init();
-  lcd.backlight();
+  pinMode(6, INPUT_PULLUP);
+  lcd.begin(16, 2);
+  lcd.createChar(0, tree); lcd.createChar(1, bump);
+  lcd.createChar(2, p1Char); lcd.createChar(3, p2Char);
+ 
+  radio.begin();
+  radio.setPALevel(RF24_PA_MIN);
+  radio.setDataRate(RF24_250KBPS);
+  radio.setRetries(2, 2);
+ 
+  if(isPlayerOne) {
+    radio.openWritingPipe(addrs[0]);
+    radio.openReadingPipe(1, addrs[1]);
+  } else {
+    radio.openWritingPipe(addrs[1]);
+    radio.openReadingPipe(1, addrs[0]);
+  }
+  radio.startListening();
+
+
   lcd.clear();
+  lcd.print("CONNECTING...");
+  me.ready = true;
 
-  lcd.createChar(0, carTop);
-  lcd.createChar(1, carBottom);
-  lcd.createChar(2, orb);
 
-  lcd.setCursor(2, 0);
-  lcd.print("PACKET DASH");
-  lcd.setCursor(4, 1);
-  lcd.print("DUEL");
-  delay(2000);
-  lcd.clear();
-
-  initRadio();
-  initGameLogic();
-  initMechanics();
-
-  pinMode(FIRE_BTN, INPUT_PULLUP);
-
-  selectedMap = 0;
-  offset = 0;
-  loadSelectedMap();
-
-  gameRunning = true;
-  playerScore = 0;
-  opponentScore = 0;
-
-  if (IS_PLAYER_A) {
-  radio.openWritingPipe(address1);
-  radio.openReadingPipe(1, address2);
-} else {
-  radio.openWritingPipe(address2);
-  radio.openReadingPipe(1, address1);
+  while (!peer.ready) {
+    sendStatus();
+    if (radio.available()) radio.read(&peer, sizeof(Pack));
+    lcd.setCursor(0, 1);
+    lcd.print("WAITING FOR P"); lcd.print(isPlayerOne ? "2" : "1");
+    delay(200);
+  }
+ 
+  lcd.clear(); lcd.print("CONNECTED!"); delay(1000);
+  showStart();
 }
-}
+
 
 void loop() {
-  if (!gameRunning) {
-    showWinnerScreen();
+  // --- 1. GAME OVER STATE ---
+  if (gameOver) {
+    if (digitalRead(4) == LOW) {
+      resetGame();
+    }
+    // If I'm NOT the winner, I keep listening to see if the other guy reset
+    if (!me.won && radio.available()) {
+      radio.read(&peer, sizeof(Pack));
+      if (!peer.won && peer.lvl == 1) resetGame();
+    }
     return;
   }
 
-  updateSabotage();
-  updateMovement();        // From game_logic.h
-  updateMechanics();       // From mechanics.h
 
-  // Wireless
-  if (checkForIncomingData()) {
-    if (rxPacket.sabotageFired) {
-      triggerSabotage();
-      opponentScore += 10;     // Opponent gains points for sabotaging you
+  // --- 2. RECEIVE DATA ---
+  if (radio.available()) {
+    radio.read(&peer, sizeof(Pack));
+    if (peer.won && !me.won) { // Only trigger loss if I haven't won already
+      gameOver = true;
+      drawEnd(false);
+      return;
     }
   }
 
-  drawGameScreen();         // Your LCD + map display
 
-  // Fire sabotage
-  if (digitalRead(FIRE_BTN) == LOW) {
-    sendSabotage();
-    playerScore += 15;       // Bonus for successful sabotage
-    delay(250);
+  // --- 3. MOVEMENT & COLLISION ---
+  int oldX = me.x, oldY = me.y;
+  if(analogRead(A0)<300 && me.x>0) me.x--;
+  if(analogRead(A0)>700 && me.x<15) me.x++;
+  if(analogRead(A1)<300) me.y = 0;
+  if(analogRead(A1)>700) me.y = 1;
+
+
+  int hit = getMapObject(me.x, me.y, me.lvl);
+  if(hit == 0) { me.x = oldX; me.y = oldY; }
+  else if(hit == 1) { me.x = max(0, me.x-4); }
+
+
+  // --- 4. WIN CHECK ---
+  if(me.x >= 15) {
+    if(me.lvl < 3) {
+      me.lvl++; me.x = 0; gameSpeed -= 30; showStart();
+    } else {
+      me.won = true;
+      gameOver = true;
+      // Spam the win signal so peer catches it
+      for(int i=0; i<15; i++) { sendStatus(); delay(5); }
+      drawEnd(true);
+      return;
+    }
   }
 
-  // Progress points
-  if (playerProgress % 8 == 0 && playerProgress > 0) {
-    playerScore += 1;
+
+  sendStatus();
+  drawScene();
+  delay(gameSpeed);
+}
+
+
+void drawEnd(bool win) {
+  lcd.clear();
+  if(win) {
+    lcd.setCursor(4, 0); lcd.print("WINNER!");
+    lcd.setCursor(0, 1); lcd.print("Click to Restart");
+  } else {
+    lcd.setCursor(5, 0); lcd.print("LOSER!");
+    lcd.setCursor(0, 1); lcd.print("Click to Restart");
   }
 
-  if (checkFinishLine()) {
-    playerScore += 50;       // Big bonus for finishing round
-    nextRound();
-  }
 
-  offset++;
+  // --- BLOCKING LOOP: Waits for button click ---
+  // Wait until button is pressed (LOW)
+  while(digitalRead(6) == HIGH) {
+    // If I won, keep telling the other person so they see LOSER screen
+    if(win) { sendStatus(); delay(50); }
+  }
+  // Optional: Wait for button release
+  while(digitalRead(6) == LOW);
   delay(100);
 }
 
-// LCD Display with Score and Map
-void drawGameScreen() {
+
+void sendStatus() {
+  radio.stopListening();
+  radio.write(&me, sizeof(Pack));
+  radio.startListening();
+}
+
+
+void resetGame() {
+  me.x = 0; me.y = 1; me.lvl = 1; me.won = false; me.ready = true;
+  peer.x = 0; peer.y = 1; peer.lvl = 1; peer.won = false;
+  gameSpeed = 130;
+  gameOver = false;
+  showStart();
+}
+
+
+// ... (getMapObject and drawScene remain exactly as you had them)
+
+
+void drawScene() {
   lcd.clear();
-
-  // Top row: Level + Score
-  lcd.setCursor(0, 0);
-  lcd.print("L");
-  lcd.print(currentLevel);
-  lcd.print(" S:");
-  lcd.print(playerScore);
-
-  // Bottom row: Lane + Car + Status + Map tile
-  lcd.setCursor(0, 1);
-  lcd.print("Lane:");
-  lcd.print(playerLane);
-
-  lcd.setCursor(8, 1);
-  lcd.write(byte(0));
-  lcd.write(byte(1));
-
-  if (sabotaged) {
-    lcd.setCursor(11, 1);
-    lcd.print(" SAB!");
+  for(int c=0; c<16; c++) for(int r=0; r<2; r++) {
+    int o = getMapObject(c, r, me.lvl);
+    if(o != -1) { lcd.setCursor(c, r); lcd.write(byte(o)); }
+  }
+  lcd.setCursor(me.x, me.y); lcd.write(byte(2));
+  if(peer.lvl == me.lvl) {
+    lcd.setCursor(peer.x, peer.y); lcd.write(byte(3));
   }
 }
 
-// Final Winner Screen
-void showWinnerScreen() {
-  lcd.clear();
-  lcd.setCursor(1, 0);
-  
-  if (playerScore > opponentScore) {
-    lcd.print(" YOU WIN!");
-  } else if (opponentScore > playerScore) {
-    lcd.print(" YOU LOSE ");
-  } else {
-    lcd.print("   TIE   ");
+
+int getMapObject(int x, int r, int l) {
+  if (x <= 1 || x >= 15) return -1;
+  int spc = (l == 1) ? 4 : (l == 2) ? 3 : 2;
+  if (x % spc == 0) {
+    int oR = ((x / spc) + l) % 2;
+    if (r == oR) return (l == 3 || x % 2 != 0) ? 1 : 0;
   }
+  return -1;
+}
 
-  lcd.setCursor(0, 1);
-  lcd.print("You:");
-  lcd.print(playerScore);
-  lcd.print(" Opp:");
-  lcd.print(opponentScore);
 
-  delay(5000);
+void showStart() {
+  lcd.clear();
+  lcd.setCursor(4,0); lcd.print("P"); lcd.print(isPlayerOne ? "1":"2");
+  lcd.print(" LVL "); lcd.print(me.lvl);
+  lcd.setCursor(0, 1); lcd.print("READY? RACE!"); delay(1500);
 }
